@@ -1,0 +1,11 @@
+.layout {
+    min-height: 100vh;
+    min-width: 100vw;
+}
+
+.container {
+    position: relative;
+    display: flex;
+    flex: 1;
+    padding-top: 4rem;
+}
