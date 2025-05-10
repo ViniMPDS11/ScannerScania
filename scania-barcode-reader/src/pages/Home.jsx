@@ -2,6 +2,9 @@ import BarcodeScanner from "../components/BarcodeScanner/BarcodeScanner";
 
 export default function Home() {
     return (
-        <BarcodeScanner onScan={(code) => console.log('Código lido:', code)} />
+        <>
+            <p>Home</p>
+            <BarcodeScanner onScan={(code) => console.log('Código lido:', code)} />
+        </>
     );
 }
