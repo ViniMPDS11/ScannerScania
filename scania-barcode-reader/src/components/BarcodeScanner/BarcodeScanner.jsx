@@ -1,39 +1,26 @@
-import React, { useEffect, useRef } from "react";
-import { BrowserMultiFormatReader } from "@zxing/library";
+// src/components/BarcodeScanner.jsx
+import { useEffect, useRef } from 'react';
+import { BrowserMultiFormatReader } from '@zxing/library';
 
-const BarcodeScanner = () => {
+function BarcodeScanner({ onScan }) {
   const videoRef = useRef(null);
-  const codeReader = useRef(new BrowserMultiFormatReader());
 
   useEffect(() => {
-    const startScanner = async () => {
-      try {
-        const selectedDeviceId = (await codeReader.current.listVideoInputDevices())[0]?.deviceId;
+    const codeReader = new BrowserMultiFormatReader();
 
-        if (selectedDeviceId) {
-          await codeReader.current.decodeFromVideoDevice(selectedDeviceId, videoRef.current, (result) => {
-            if (result) {
-              console.log("Código lido:", result.getText());
-            }
-          });
-        }
-      } catch (error) {
-        console.error("Erro ao iniciar scanner:", error);
+    codeReader.decodeFromVideoDevice(null, videoRef.current, (result, err) => {
+      if (result) {
+        onScan(result.getText());
+        codeReader.reset(); // Para parar depois da leitura
       }
-    };
-
-    startScanner();
+    });
 
     return () => {
-      codeReader.current.resetStream(); // ✅ correto
+      codeReader.reset();
     };
-  }, []);
+  }, [onScan]);
 
-  return (
-    <div>
-      <video ref={videoRef} style={{ width: "100%" }} />
-    </div>
-  );
-};
+  return <video ref={videoRef} style={{ width: '100%' }} />;
+}
 
 export default BarcodeScanner;
