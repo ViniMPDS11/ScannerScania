@@ -1,14 +1,14 @@
 // src/components/BarcodeScanner.jsx
 import { useEffect, useState, useRef } from 'react';
-import { BrowserMultiFormatReader } from '@zxing/library';
-
-
+import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
 
 function BarcodeScanner({ onScan }) {
   const videoRef = useRef(null);
   const [permissionState, setPermissionState] = useState("checking"); // 'granted' | 'denied' | 'prompt' | 'checking'
 
-  // Verifica a permissão ao carregar o componente
+  const codeReaderRef = useRef(null); // armazenar o reader para resetar depois
+
+  // Verifica permissão ao carregar
   useEffect(() => {
     async function checkPermission() {
       try {
@@ -23,7 +23,7 @@ function BarcodeScanner({ onScan }) {
           startCamera();
         }
       } catch (err) {
-        console.warn("Permissions API não suportada, caindo no fallback.");
+        console.warn("Permissions API não suportada.");
         setPermissionState("prompt");
       }
     }
@@ -31,35 +31,51 @@ function BarcodeScanner({ onScan }) {
     checkPermission();
   }, []);
 
-  // Inicia a câmera
+  // Inicia a câmera e leitura com câmera traseira
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+      // Tenta encontrar a câmera traseira
+      const backCamera = videoDevices.find(device =>
+        device.label.toLowerCase().includes('back') ||
+        device.label.toLowerCase().includes('environment')
+      );
+
+      const selectedDeviceId = backCamera?.deviceId || videoDevices[0]?.deviceId;
+
+      if (!selectedDeviceId) {
+        throw new Error("Nenhuma câmera encontrada.");
       }
+
+      // Inicializa o leitor
+      const codeReader = new BrowserMultiFormatReader();
+      codeReaderRef.current = codeReader;
+
+      codeReader.decodeFromVideoDevice(selectedDeviceId, videoRef.current, (result, err) => {
+        if (result) {
+          onScan(result.getText());
+          codeReader.reset(); // Para leitura única
+        }
+        if (err && !(err instanceof NotFoundException)) {
+          console.error("Erro ao ler código:", err);
+        }
+      });
+
       setPermissionState("granted");
     } catch (err) {
-      console.error("Erro ao acessar a câmera:", err);
+      console.error("Erro ao iniciar câmera:", err);
       setPermissionState("denied");
     }
   };
 
+  // Limpa o scanner ao desmontar
   useEffect(() => {
-    const codeReader = new BrowserMultiFormatReader();
-
-    codeReader.decodeFromVideoDevice(null, videoRef.current, (result, err) => {
-      if (result) {
-        onScan(result.getText());
-        codeReader.reset(); // Para parar depois da leitura
-      }
-    });
-
     return () => {
-      codeReader.reset();
+      codeReaderRef.current?.reset();
     };
-  }, [onScan]);
+  }, []);
 
   return (
     <div>
